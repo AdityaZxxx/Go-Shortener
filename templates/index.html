@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GO Shortener - Modern URL Shortener</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    />
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="app-header">
+        <div class="header-content">
+          <h1><i class="fas fa-link"></i> GO Shortener</h1>
+          <div class="theme-toggle">
+            <button id="themeToggle" aria-label="Toggle dark mode">
+              <i class="fas fa-moon"></i>
+              <i class="fas fa-sun"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <div class="card url-card">
+          <div class="card-header">
+            <h2><i class="fas fa-magic"></i> Create Short URL</h2>
+          </div>
+          <div class="card-body">
+            <form id="shortenForm" class="url-form">
+              <div class="form-group">
+                <label for="url"
+                  ><i class="fas fa-globe"></i> Enter Long URL</label
+                >
+                <input
+                  type="url"
+                  id="url"
+                  placeholder="https://example.com/very-long-url"
+                  required
+                />
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn primary">
+                  <i class="fas fa-compress-alt"></i> Shorten
+                </button>
+                <button type="button" id="clearShorten" class="btn secondary">
+                  <i class="fas fa-broom"></i> Clear
+                </button>
+              </div>
+            </form>
+            <div id="result" class="result-container"></div>
+          </div>
+        </div>
+
+        <div class="card url-card">
+          <div class="card-header">
+            <h2><i class="fas fa-cog"></i> Custom URL</h2>
+          </div>
+          <div class="card-body">
+            <form id="customForm" class="url-form">
+              <div class="form-group">
+                <label for="customUrl"
+                  ><i class="fas fa-globe"></i> Enter Long URL</label
+                >
+                <input
+                  type="url"
+                  id="customUrl"
+                  placeholder="https://example.com/very-long-url"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="customPath"
+                  ><i class="fas fa-pencil-alt"></i> Custom Path</label
+                >
+                <div class="input-with-prefix">
+                  <span class="input-prefix">https://goshortener.url/</span>
+                  <input
+                    type="text"
+                    id="customPath"
+                    placeholder="my-custom-path"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn primary">
+                  <i class="fas fa-check-circle"></i> Create
+                </button>
+                <button type="button" id="clearCustom" class="btn secondary">
+                  <i class="fas fa-broom"></i> Clear
+                </button>
+              </div>
+            </form>
+            <div id="customResult" class="result-container"></div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <p>© <span id="currentYear"></span> Aditya. All rights reserved.</p>
+      </footer>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      // Theme toggle functionality
+      const themeToggle = document.getElementById("themeToggle");
+      const htmlElement = document.documentElement;
+
+      // Check for saved theme preference or use preferred color scheme
+      const savedTheme =
+        localStorage.getItem("theme") ||
+        (window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light");
+      htmlElement.setAttribute("data-theme", savedTheme);
+
+      themeToggle.addEventListener("click", () => {
+        const currentTheme = htmlElement.getAttribute("data-theme");
+        const newTheme = currentTheme === "light" ? "dark" : "light";
+        htmlElement.setAttribute("data-theme", newTheme);
+        localStorage.setItem("theme", newTheme);
+      });
+
+      // Show toast notification
+      function showToast(message, type = "success") {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = `toast show ${type}`;
+
+        setTimeout(() => {
+          toast.className = toast.className.replace("show", "");
+        }, 3000);
+      }
+
+      // Copy to clipboard function
+      function copyToClipboard(text) {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            showToast("URL copied to clipboard!");
+          })
+          .catch((err) => {
+            showToast("Failed to copy URL", "error");
+            console.error("Failed to copy: ", err);
+          });
+      }
+
+      // Shorten URL Form
+      document
+        .getElementById("shortenForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const url = document.getElementById("url").value;
+
+          try {
+            const response = await fetch("/shorten", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: `url=${encodeURIComponent(url)}`,
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+              const fullUrl =
+                window.location.href.replace(/\/$/, "") + data.short_url;
+              document.getElementById("result").innerHTML = `
+                        <div class="result-box success">
+                            <div class="result-content">
+                                <i class="fas fa-check-circle"></i>
+                                <div>
+                                    <p class="result-label">Your short URL:</p>
+                                    <a href="${fullUrl}" target="_blank" class="result-url">${fullUrl}</a>
+                                </div>
+                            </div>
+                            <button class="btn copy-btn" onclick="copyToClipboard('${fullUrl}')">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    `;
+              showToast("URL shortened successfully!");
+            } else {
+              throw new Error(data.error || "Failed to shorten URL");
+            }
+          } catch (error) {
+            document.getElementById("result").innerHTML = `
+                    <div class="result-box error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            showToast(error.message, "error");
+          }
+        });
+
+      // Custom URL Form
+      document
+        .getElementById("customForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const url = document.getElementById("customUrl").value;
+          const customPath = document.getElementById("customPath").value;
+
+          try {
+            const response = await fetch("/custom", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: `url=${encodeURIComponent(
+                url
+              )}&custom_path=${encodeURIComponent(customPath)}`,
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+              const fullUrl =
+                window.location.href.replace(/\/$/, "") + data.short_url;
+              document.getElementById("customResult").innerHTML = `
+                        <div class="result-box success">
+                            <div class="result-content">
+                                <i class="fas fa-check-circle"></i>
+                                <div>
+                                    <p class="result-label">Your custom URL:</p>
+                                    <a href="${fullUrl}" target="_blank" class="result-url">${fullUrl}</a>
+                                </div>
+                            </div>
+                            <button class="btn copy-btn" onclick="copyToClipboard('${fullUrl}')">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    `;
+              showToast("Custom URL created successfully!");
+            } else {
+              const error = await response.text();
+              throw new Error(error || "Failed to create custom URL");
+            }
+          } catch (error) {
+            document.getElementById("customResult").innerHTML = `
+                    <div class="result-box error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            showToast(error.message, "error");
+          }
+        });
+
+      // Clear buttons
+      document
+        .getElementById("clearShorten")
+        .addEventListener("click", function () {
+          document.getElementById("url").value = "";
+          document.getElementById("result").innerHTML = "";
+        });
+
+      document
+        .getElementById("clearCustom")
+        .addEventListener("click", function () {
+          document.getElementById("customUrl").value = "";
+          document.getElementById("customPath").value = "";
+          document.getElementById("customResult").innerHTML = "";
+        });
+      document.getElementById("currentYear").textContent =
+        new Date().getFullYear();
+    </script>
+  </body>
+</html>
